@@ -294,4 +294,4 @@ For issues or questions, please check the code comments or create an issue in th
 
 ---
 
-**Built with ❤️ for efficient restaurant operations**
+**Built with ❤️ by Sirajuddin Khan for efficient restaurant operations**
