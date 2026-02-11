@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thank You - Food Ordering System</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">🎉</div>
+        <h1>Thank You!</h1>
+        <p class="subtitle">Your order has been confirmed</p>
+      </div>
+
+      <div class="alert alert-success">✅ Payment received successfully!</div>
+
+      <div class="order-id-display">
+        <div class="order-id-label">Order ID</div>
+        <div class="order-id-value" id="orderId"></div>
+      </div>
+
+      <div class="info-box" style="text-align: center">
+        <p style="font-size: 16px; line-height: 1.8">
+          📧 A feedback form has been sent to your email.<br />
+          We'd love to hear about your experience!<br /><br />
+          🍽️ Your food will be ready shortly.<br /><br />
+          Thank you for dining with us! 😊
+        </p>
+      </div>
+
+      <a
+        href="/"
+        class="btn"
+        style="display: block; text-decoration: none; text-align: center"
+      >
+        Place Another Order
+      </a>
+    </div>
+
+    <script>
+      const orderId = sessionStorage.getItem("orderId");
+
+      if (!orderId) {
+        window.location.href = "/";
+      }
+
+      document.getElementById("orderId").textContent = orderId;
+
+      // Clear session data
+      setTimeout(() => {
+        sessionStorage.clear();
+      }, 2000);
+    </script>
+  </body>
+</html>

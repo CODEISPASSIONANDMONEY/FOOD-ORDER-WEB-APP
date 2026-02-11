@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables (CONFIDENTIAL)
+.env
+.env.local
+.env.production
+
+# Database files (CONFIDENTIAL - Contains user data, OTPs, orders)
+database/food_ordering.json
+database/backups/
+
+# User uploaded files
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Generated invoices
+invoices/
+*.pdf
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Menu - Food Ordering System</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="/js/utils.js"></script>
+  </head>
+  <body>
+    <div class="container" style="max-width: 800px">
+      <div class="header">
+        <div class="logo">🍕</div>
+        <h1>Our Menu</h1>
+        <p class="subtitle">Select items to add to your order</p>
+      </div>
+
+      <div id="alertBox" class="alert hidden"></div>
+
+      <div id="menuContainer" class="menu-container">
+        <div style="text-align: center; padding: 50px; color: #666">
+          <div
+            class="loading"
+            style="width: 40px; height: 40px; border-width: 4px"
+          ></div>
+          <p style="margin-top: 20px">Loading menu...</p>
+        </div>
+      </div>
+
+      <div id="orderSummary" class="order-summary hidden">
+        <div class="summary-row">
+          <span>Items Selected:</span>
+          <span id="itemCount">0</span>
+        </div>
+        <div class="summary-row summary-total">
+          <span>Total Amount:</span>
+          <span id="totalAmount">$0.00</span>
+        </div>
+      </div>
+
+      <button id="confirmBtn" class="btn hidden">
+        <span id="btnText">Confirm Order</span>
+        <span id="btnLoader" class="loading hidden"></span>
+      </button>
+    </div>
+
+    <script>
+      const API_URL = window.location.origin;
+
+      const alertBox = document.getElementById("alertBox");
+      const menuContainer = document.getElementById("menuContainer");
+      const orderSummary = document.getElementById("orderSummary");
+      const confirmBtn = document.getElementById("confirmBtn");
+      const btnText = document.getElementById("btnText");
+      const btnLoader = document.getElementById("btnLoader");
+      const itemCountEl = document.getElementById("itemCount");
+      const totalAmountEl = document.getElementById("totalAmount");
+
+      const userId = sessionStorage.getItem("userId");
+      const userEmail = sessionStorage.getItem("userEmail");
+
+      if (!userId || !userEmail) {
+        window.location.href = "/";
+      }
+
+      let menuItems = [];
+      let selectedItems = {};
+
+      function showAlert(message, type = "info") {
+        alertBox.textContent = message;
+        alertBox.className = `alert alert-${type}`;
+        alertBox.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function updateOrderSummary() {
+        let count = 0;
+        let total = 0;
+
+        Object.entries(selectedItems).forEach(([itemId, quantity]) => {
+          if (quantity > 0) {
+            const item = menuItems.find((m) => m.id == itemId);
+            if (item) {
+              count += quantity;
+              total += item.price * quantity;
+            }
+          }
+        });
+
+        itemCountEl.textContent = count;
+        totalAmountEl.textContent = `$${total.toFixed(2)}`;
+
+        if (count > 0) {
+          orderSummary.classList.remove("hidden");
+          confirmBtn.classList.remove("hidden");
+        } else {
+          orderSummary.classList.add("hidden");
+          confirmBtn.classList.add("hidden");
+        }
+      }
+
+      function updateQuantity(itemId, change) {
+        if (!selectedItems[itemId]) {
+          selectedItems[itemId] = 0;
+        }
+
+        selectedItems[itemId] += change;
+
+        if (selectedItems[itemId] < 0) {
+          selectedItems[itemId] = 0;
+        }
+
+        if (selectedItems[itemId] > 99) {
+          selectedItems[itemId] = 99;
+        }
+
+        const checkbox = document.getElementById(`item-${itemId}`);
+        const quantityDisplay = document.getElementById(`qty-${itemId}`);
+        const quantityControl = document.getElementById(
+          `qty-control-${itemId}`,
+        );
+
+        if (selectedItems[itemId] > 0) {
+          checkbox.checked = true;
+          quantityDisplay.textContent = selectedItems[itemId];
+          quantityControl.classList.remove("hidden");
+        } else {
+          checkbox.checked = false;
+          quantityControl.classList.add("hidden");
+          delete selectedItems[itemId];
+        }
+
+        updateOrderSummary();
+      }
+
+      function renderMenu(items) {
+        const grouped = items.reduce((acc, item) => {
+          if (!acc[item.category]) {
+            acc[item.category] = [];
+          }
+          acc[item.category].push(item);
+          return acc;
+        }, {});
+
+        let html = "";
+
+        Object.entries(grouped).forEach(([category, items]) => {
+          html += `
+                    <div class="menu-category">
+                        <h2 class="category-title">${category}</h2>
+                `;
+
+          items.forEach((item) => {
+            const imageUrl = item.image || "/images/placeholder.jpg";
+            html += `
+                        <div class="menu-item">
+                            <input 
+                                type="checkbox" 
+                                id="item-${item.id}"
+                                onchange="updateQuantity(${item.id}, this.checked ? 1 : -${selectedItems[item.id] || 1})"
+                            >
+                            <img src="${imageUrl}" alt="${item.name}" class="menu-item-image" onerror="this.src='/images/placeholder.jpg'">
+                            <div class="item-details">
+                                <div class="item-name">${item.name}</div>
+                                <div class="item-description">${item.description || ""}</div>
+                                <div class="item-price">$${parseFloat(item.price).toFixed(2)}</div>
+                            </div>
+                            <div id="qty-control-${item.id}" class="quantity-control hidden">
+                                <button type="button" class="quantity-btn" onclick="updateQuantity(${item.id}, -1)">-</button>
+                                <span id="qty-${item.id}" class="quantity-display">1</span>
+                                <button type="button" class="quantity-btn" onclick="updateQuantity(${item.id}, 1)">+</button>
+                            </div>
+                        </div>
+                    `;
+          });
+
+          html += "</div>";
+        });
+
+        menuContainer.innerHTML = html;
+      }
+
+      async function loadMenu() {
+        try {
+          const response = await fetchWithRetry(`${API_URL}/api/menu`, {}, 2);
+          const data = await response.json();
+
+          if (data.success) {
+            menuItems = data.data.items;
+            renderMenu(menuItems);
+          } else {
+            menuContainer.innerHTML =
+              '<p style="text-align: center; color: #666;">Failed to load menu</p>';
+          }
+        } catch (error) {
+          console.error("Error loading menu:", error);
+          menuContainer.innerHTML =
+            '<p style="text-align: center; color: #666;">Error loading menu</p>';
+        }
+      }
+
+      async function confirmOrder() {
+        const items = Object.entries(selectedItems)
+          .filter(([_, quantity]) => quantity > 0)
+          .map(([itemId, quantity]) => ({
+            menuItemId: parseInt(itemId),
+            quantity,
+          }));
+
+        if (items.length === 0) {
+          showAlert("Please select at least one item", "error");
+          return;
+        }
+
+        confirmBtn.disabled = true;
+        btnText.classList.add("hidden");
+        btnLoader.classList.remove("hidden");
+
+        try {
+          const response = await fetchWithRetry(
+            `${API_URL}/api/orders`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                userId: parseInt(userId),
+                email: userEmail,
+                items,
+              }),
+            },
+            2,
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            sessionStorage.setItem("orderId", data.data.orderId);
+            sessionStorage.setItem("orderAmount", data.data.totalAmount);
+            window.location.href = "/confirm-order.html";
+          } else {
+            showAlert(data.message || "Failed to create order", "error");
+            confirmBtn.disabled = false;
+            btnText.classList.remove("hidden");
+            btnLoader.classList.add("hidden");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          showAlert("Network error. Please try again.", "error");
+          confirmBtn.disabled = false;
+          btnText.classList.remove("hidden");
+          btnLoader.classList.add("hidden");
+        }
+      }
+
+      confirmBtn.addEventListener("click", confirmOrder);
+
+      // Make functions global
+      window.updateQuantity = updateQuantity;
+
+      loadMenu();
+    </script>
+  </body>
+</html>

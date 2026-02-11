@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome - Food Ordering System</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="/js/utils.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">🍽️</div>
+        <h1>Welcome to Our Restaurant</h1>
+        <p class="subtitle">Scan the QR code to get started with your order</p>
+      </div>
+
+      <div id="alertBox" class="alert hidden"></div>
+
+      <form id="emailForm">
+        <div class="form-group">
+          <label for="email">Enter Your Email Address</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="your.email@example.com"
+            required
+            autocomplete="email"
+          />
+        </div>
+
+        <button type="submit" class="btn" id="submitBtn">
+          <span id="btnText">Get OTP</span>
+          <span id="btnLoader" class="loading hidden"></span>
+        </button>
+      </form>
+
+      <div class="info-box">
+        <p>
+          📧 An OTP (One-Time Password) will be sent to your email for
+          verification.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      const API_URL = window.location.origin;
+
+      const alertBox = document.getElementById("alertBox");
+      const emailForm = document.getElementById("emailForm");
+      const emailInput = document.getElementById("email");
+      const submitBtn = document.getElementById("submitBtn");
+      const btnText = document.getElementById("btnText");
+      const btnLoader = document.getElementById("btnLoader");
+
+      function showAlert(message, type = "info") {
+        alertBox.textContent = message;
+        alertBox.className = `alert alert-${type}`;
+        alertBox.classList.remove("hidden");
+        setTimeout(() => {
+          alertBox.classList.add("hidden");
+        }, 5000);
+      }
+
+      function setLoading(loading) {
+        submitBtn.disabled = loading;
+        if (loading) {
+          btnText.classList.add("hidden");
+          btnLoader.classList.remove("hidden");
+        } else {
+          btnText.classList.remove("hidden");
+          btnLoader.classList.add("hidden");
+        }
+      }
+
+      emailForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const email = emailInput.value.trim();
+
+        if (!email) {
+          showAlert("Please enter your email address", "error");
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          const response = await fetchWithRetry(
+            `${API_URL}/api/auth/send-otp`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ email }),
+            },
+            2,
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            showAlert("OTP sent successfully! Redirecting...", "success");
+            sessionStorage.setItem("userEmail", email);
+            setTimeout(() => {
+              window.location.href = "/verify-otp.html";
+            }, 1500);
+          } else {
+            showAlert(data.message || "Failed to send OTP", "error");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          const message =
+            error.message || "Network error. Please check your connection.";
+          showAlert(message, "error");
+        } finally {
+          setLoading(false);
+        }
+      });
+
+      // Check if already logged in
+      const userId = sessionStorage.getItem("userId");
+      if (userId) {
+        window.location.href = "/menu.html";
+      }
+    </script>
+  </body>
+</html>

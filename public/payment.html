@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment - Food Ordering System</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="/js/utils.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">💳</div>
+        <h1>Complete Payment</h1>
+        <p class="subtitle">Scan the QR code to pay</p>
+      </div>
+
+      <div id="alertBox" class="alert alert-success">
+        ✅ Invoice has been sent to <strong id="userEmail"></strong>
+      </div>
+
+      <div class="order-id-display">
+        <div class="order-id-label">Order ID</div>
+        <div class="order-id-value" id="orderId">Loading...</div>
+      </div>
+
+      <div class="order-summary">
+        <div class="summary-row summary-total">
+          <span>Amount to Pay:</span>
+          <span id="totalAmount">$0.00</span>
+        </div>
+      </div>
+
+      <div class="payment-qr">
+        <h3 style="color: #333; margin-bottom: 20px">Scan to Pay</h3>
+        <div id="qrcode" style="display: inline-block"></div>
+        <p style="margin-top: 20px; color: #666; font-size: 14px">
+          Please scan this QR code with your payment app
+        </p>
+      </div>
+
+      <div class="info-box">
+        <p><strong>After payment:</strong></p>
+        <p>
+          Click the button below to confirm your payment and receive a feedback
+          form via email.
+        </p>
+      </div>
+
+      <button id="paidBtn" class="btn">
+        <span id="btnText">I Have Paid ✓</span>
+        <span id="btnLoader" class="loading hidden"></span>
+      </button>
+    </div>
+
+    <script>
+      const API_URL = window.location.origin;
+
+      const alertBox = document.getElementById("alertBox");
+      const orderIdEl = document.getElementById("orderId");
+      const totalAmountEl = document.getElementById("totalAmount");
+      const userEmailEl = document.getElementById("userEmail");
+      const paidBtn = document.getElementById("paidBtn");
+      const btnText = document.getElementById("btnText");
+      const btnLoader = document.getElementById("btnLoader");
+
+      const orderId = sessionStorage.getItem("orderId");
+      const orderAmount = sessionStorage.getItem("orderAmount");
+      const userEmail = sessionStorage.getItem("userEmail");
+
+      if (!orderId || !orderAmount || !userEmail) {
+        window.location.href = "/";
+      }
+
+      orderIdEl.textContent = orderId;
+      totalAmountEl.textContent = `$${parseFloat(orderAmount).toFixed(2)}`;
+      userEmailEl.textContent = userEmail;
+
+      // Generate QR code for payment
+      const qrText = `Payment for ${orderId} - Amount: $${parseFloat(orderAmount).toFixed(2)}`;
+      new QRCode(document.getElementById("qrcode"), {
+        text: qrText,
+        width: 250,
+        height: 250,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H,
+      });
+
+      function showAlert(message, type = "info") {
+        alertBox.textContent = message;
+        alertBox.className = `alert alert-${type}`;
+        alertBox.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      async function confirmPayment() {
+        paidBtn.disabled = true;
+        btnText.classList.add("hidden");
+        btnLoader.classList.remove("hidden");
+
+        try {
+          const response = await fetchWithRetry(
+            `${API_URL}/api/orders/${orderId}/paid`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+            2,
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            showAlert("Payment confirmed! Redirecting...", "success");
+            setTimeout(() => {
+              window.location.href = "/thank-you.html";
+            }, 2000);
+          } else {
+            showAlert(data.message || "Failed to confirm payment", "error");
+            paidBtn.disabled = false;
+            btnText.classList.remove("hidden");
+            btnLoader.classList.add("hidden");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          showAlert("Network error. Please try again.", "error");
+          paidBtn.disabled = false;
+          btnText.classList.remove("hidden");
+          btnLoader.classList.add("hidden");
+        }
+      }
+
+      paidBtn.addEventListener("click", confirmPayment);
+    </script>
+  </body>
+</html>

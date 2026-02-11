@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify OTP - Food Ordering System</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="/js/utils.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">🔐</div>
+        <h1>Verify Your Email</h1>
+        <p class="subtitle">
+          Enter the OTP sent to <strong id="userEmail"></strong>
+        </p>
+      </div>
+
+      <div id="alertBox" class="alert hidden"></div>
+
+      <form id="otpForm">
+        <div class="form-group">
+          <label for="otp">Enter 6-Digit OTP</label>
+          <input
+            type="text"
+            id="otp"
+            name="otp"
+            placeholder="000000"
+            maxlength="6"
+            pattern="[0-9]{6}"
+            required
+            autocomplete="off"
+          />
+        </div>
+
+        <button type="submit" class="btn" id="submitBtn">
+          <span id="btnText">Verify OTP</span>
+          <span id="btnLoader" class="loading hidden"></span>
+        </button>
+      </form>
+
+      <div class="info-box">
+        <p>
+          Didn't receive the OTP?
+          <a href="/" style="color: #667eea; font-weight: 600"
+            >Request a new one</a
+          >
+        </p>
+      </div>
+    </div>
+
+    <script>
+      const API_URL = window.location.origin;
+
+      const alertBox = document.getElementById("alertBox");
+      const otpForm = document.getElementById("otpForm");
+      const otpInput = document.getElementById("otp");
+      const submitBtn = document.getElementById("submitBtn");
+      const btnText = document.getElementById("btnText");
+      const btnLoader = document.getElementById("btnLoader");
+      const userEmailEl = document.getElementById("userEmail");
+
+      const userEmail = sessionStorage.getItem("userEmail");
+
+      if (!userEmail) {
+        window.location.href = "/";
+      }
+
+      userEmailEl.textContent = userEmail;
+
+      function showAlert(message, type = "info") {
+        alertBox.textContent = message;
+        alertBox.className = `alert alert-${type}`;
+        alertBox.classList.remove("hidden");
+        setTimeout(() => {
+          alertBox.classList.add("hidden");
+        }, 5000);
+      }
+
+      function setLoading(loading) {
+        submitBtn.disabled = loading;
+        if (loading) {
+          btnText.classList.add("hidden");
+          btnLoader.classList.remove("hidden");
+        } else {
+          btnText.classList.remove("hidden");
+          btnLoader.classList.add("hidden");
+        }
+      }
+
+      // Auto-focus and format OTP input
+      otpInput.addEventListener("input", (e) => {
+        e.target.value = e.target.value.replace(/[^0-9]/g, "");
+      });
+
+      otpForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const otp = otpInput.value.trim();
+
+        if (otp.length !== 6) {
+          showAlert("Please enter a valid 6-digit OTP", "error");
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          const response = await fetchWithRetry(
+            `${API_URL}/api/auth/verify-otp`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                email: userEmail,
+                otp,
+              }),
+            },
+            2,
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            showAlert("Verification successful! Redirecting...", "success");
+            sessionStorage.setItem("userId", data.userId);
+            sessionStorage.setItem("userEmail", data.email);
+            setTimeout(() => {
+              window.location.href = "/menu.html";
+            }, 1500);
+          } else {
+            showAlert(data.message || "Invalid OTP", "error");
+            otpInput.value = "";
+            otpInput.focus();
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          const message = error.message || "Network error. Please try again.";
+          showAlert(message, "error");
+        } finally {
+          setLoading(false);
+        }
+      });
+
+      otpInput.focus();
+    </script>
+  </body>
+</html>

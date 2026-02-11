@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Feedback - Food Ordering System</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="/js/utils.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">⭐</div>
+        <h1>Share Your Feedback</h1>
+        <p class="subtitle">Help us improve your experience</p>
+      </div>
+
+      <div id="alertBox" class="alert hidden"></div>
+
+      <form id="feedbackForm">
+        <div class="form-group">
+          <label>How would you rate your experience?</label>
+          <div class="stars" id="starRating">
+            <span class="star" data-rating="1">★</span>
+            <span class="star" data-rating="2">★</span>
+            <span class="star" data-rating="3">★</span>
+            <span class="star" data-rating="4">★</span>
+            <span class="star" data-rating="5">★</span>
+          </div>
+          <input type="hidden" id="rating" name="rating" />
+        </div>
+
+        <div class="form-group">
+          <label for="suggestions">Your Suggestions (Optional)</label>
+          <textarea
+            id="suggestions"
+            name="suggestions"
+            placeholder="Tell us what you think..."
+            rows="6"
+          ></textarea>
+        </div>
+
+        <button type="submit" class="btn" id="submitBtn">
+          <span id="btnText">Submit Feedback</span>
+          <span id="btnLoader" class="loading hidden"></span>
+        </button>
+      </form>
+
+      <div class="info-box">
+        <p>Thank you for taking the time to share your feedback! 🙏</p>
+      </div>
+    </div>
+
+    <script>
+      const API_URL = window.location.origin;
+
+      const alertBox = document.getElementById("alertBox");
+      const feedbackForm = document.getElementById("feedbackForm");
+      const ratingInput = document.getElementById("rating");
+      const suggestionsInput = document.getElementById("suggestions");
+      const submitBtn = document.getElementById("submitBtn");
+      const btnText = document.getElementById("btnText");
+      const btnLoader = document.getElementById("btnLoader");
+
+      // Get order ID from URL parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const orderId = urlParams.get("orderId");
+
+      if (!orderId) {
+        showAlert("Invalid feedback link", "error");
+        submitBtn.disabled = true;
+      }
+
+      let selectedRating = 0;
+
+      // Star rating functionality
+      const stars = document.querySelectorAll(".star");
+      stars.forEach((star) => {
+        star.addEventListener("click", () => {
+          selectedRating = parseInt(star.dataset.rating);
+          ratingInput.value = selectedRating;
+          updateStars();
+        });
+
+        star.addEventListener("mouseenter", () => {
+          const rating = parseInt(star.dataset.rating);
+          stars.forEach((s, index) => {
+            if (index < rating) {
+              s.classList.add("active");
+            } else {
+              s.classList.remove("active");
+            }
+          });
+        });
+      });
+
+      document
+        .getElementById("starRating")
+        .addEventListener("mouseleave", updateStars);
+
+      function updateStars() {
+        stars.forEach((star, index) => {
+          if (index < selectedRating) {
+            star.classList.add("active");
+          } else {
+            star.classList.remove("active");
+          }
+        });
+      }
+
+      function showAlert(message, type = "info") {
+        alertBox.textContent = message;
+        alertBox.className = `alert alert-${type}`;
+        alertBox.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function setLoading(loading) {
+        submitBtn.disabled = loading;
+        if (loading) {
+          btnText.classList.add("hidden");
+          btnLoader.classList.remove("hidden");
+        } else {
+          btnText.classList.remove("hidden");
+          btnLoader.classList.add("hidden");
+        }
+      }
+
+      feedbackForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const rating = ratingInput.value;
+        const suggestions = suggestionsInput.value.trim();
+
+        if (!rating) {
+          showAlert("Please select a rating", "error");
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          const response = await fetchWithRetry(
+            `${API_URL}/api/feedback`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                orderId,
+                rating: parseInt(rating),
+                suggestions,
+              }),
+            },
+            2,
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            showAlert("Thank you for your feedback! 🎉", "success");
+            feedbackForm.reset();
+            selectedRating = 0;
+            updateStars();
+            setTimeout(() => {
+              window.close();
+            }, 3000);
+          } else {
+            showAlert(data.message || "Failed to submit feedback", "error");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          showAlert("Network error. Please try again.", "error");
+        } finally {
+          setLoading(false);
+        }
+      });
+    </script>
+  </body>
+</html>

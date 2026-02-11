@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirm Order - Food Ordering System</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="/js/utils.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">✅</div>
+        <h1>Confirm Your Order</h1>
+        <p class="subtitle">Review your order details</p>
+      </div>
+
+      <div id="alertBox" class="alert hidden"></div>
+
+      <div class="order-id-display">
+        <div class="order-id-label">Your Order ID</div>
+        <div class="order-id-value" id="orderId">Loading...</div>
+      </div>
+
+      <div class="order-summary">
+        <div class="summary-row summary-total">
+          <span>Total Amount:</span>
+          <span id="totalAmount">$0.00</span>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <p><strong>Next Steps:</strong></p>
+        <ol style="margin: 10px 0; padding-left: 20px">
+          <li>Click "Send Invoice" to receive your invoice via email</li>
+          <li>Pay using the QR code at the counter</li>
+          <li>You'll receive a feedback form after payment</li>
+        </ol>
+      </div>
+
+      <button id="confirmBtn" class="btn">
+        <span id="btnText">Send Invoice to Email</span>
+        <span id="btnLoader" class="loading hidden"></span>
+      </button>
+    </div>
+
+    <script>
+      const API_URL = window.location.origin;
+
+      const alertBox = document.getElementById("alertBox");
+      const orderIdEl = document.getElementById("orderId");
+      const totalAmountEl = document.getElementById("totalAmount");
+      const confirmBtn = document.getElementById("confirmBtn");
+      const btnText = document.getElementById("btnText");
+      const btnLoader = document.getElementById("btnLoader");
+
+      const orderId = sessionStorage.getItem("orderId");
+      const orderAmount = sessionStorage.getItem("orderAmount");
+      const userEmail = sessionStorage.getItem("userEmail");
+
+      if (!orderId || !orderAmount) {
+        window.location.href = "/";
+      }
+
+      orderIdEl.textContent = orderId;
+      totalAmountEl.textContent = `$${parseFloat(orderAmount).toFixed(2)}`;
+
+      function showAlert(message, type = "info") {
+        alertBox.textContent = message;
+        alertBox.className = `alert alert-${type}`;
+        alertBox.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      async function sendInvoice() {
+        confirmBtn.disabled = true;
+        btnText.classList.add("hidden");
+        btnLoader.classList.remove("hidden");
+
+        try {
+          const response = await fetchWithRetry(
+            `${API_URL}/api/orders/${orderId}/confirm`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+            2,
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            showAlert("Invoice sent successfully! Redirecting...", "success");
+            setTimeout(() => {
+              window.location.href = "/payment.html";
+            }, 2000);
+          } else {
+            showAlert(data.message || "Failed to send invoice", "error");
+            confirmBtn.disabled = false;
+            btnText.classList.remove("hidden");
+            btnLoader.classList.add("hidden");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          showAlert("Network error. Please try again.", "error");
+          confirmBtn.disabled = false;
+          btnText.classList.remove("hidden");
+          btnLoader.classList.add("hidden");
+        }
+      }
+
+      confirmBtn.addEventListener("click", sendInvoice);
+    </script>
+  </body>
+</html>
